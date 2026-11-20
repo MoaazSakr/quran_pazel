@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>بازل القرآن الكريم - المستويات</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800;900&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #0ea5e9;
+            background-image: radial-gradient(circle at center, #38bdf8 0%, #0284c7 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        .quran-text {
+            font-family: 'Amiri', serif;
+        }
+
+        .levels-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            padding: 10px 0;
+        }
+        
+        .levels-wrapper::-webkit-scrollbar, .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+            width: 6px;
+        }
+        .levels-wrapper::-webkit-scrollbar-track, .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        .levels-wrapper::-webkit-scrollbar-thumb, .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(253, 224, 71, 0.6);
+            border-radius: 10px;
+        }
+
+        .level-btn {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .level-btn.active, .level-btn:hover {
+            background: #fde047;
+            color: #0c4a6e;
+            border-color: #fde047;
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        }
+
+        .board-container {
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            position: relative;
+            background: rgba(255, 255, 255, 0.15);
+            border: 6px solid #fde047;
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+            display: grid;
+            gap: 0px; 
+            overflow: hidden;
+            transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .board-slot {
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px dashed rgba(255, 255, 255, 0.3); 
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            color: rgba(255, 255, 255, 0.4);
+            font-weight: 900;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        @keyframes pulse-slot {
+            0%, 100% { background-color: rgba(253, 224, 71, 0.1); border: 2px dashed rgba(253, 224, 71, 0.5); }
+            50% { background-color: rgba(253, 224, 71, 0.4); border: 2px dashed rgba(253, 224, 71, 1); box-shadow: inset 0 0 15px rgba(253, 224, 71, 0.6); }
+        }
+        .board-slot.highlight {
+            animation: pulse-slot 1.5s infinite;
+            cursor: pointer;
+            z-index: 5;
+        }
+
+        .piece {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background-color: #bae6fd;
+            background-repeat: no-repeat;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            border-radius: 12px;
+            border: 2px solid #fff;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s, box-shadow 0.2s;
+            display: block;
+            overflow: hidden;
+            will-change: transform;
+        }
+
+        .piece.in-pool {
+            max-width: 100px;
+        }
+
+        .piece.selected {
+            transform: scale(1.1) translateY(-10px);
+            border: 4px solid #fde047;
+            box-shadow: 0 15px 25px rgba(253, 224, 71, 0.5);
+            z-index: 20;
+        }
+
+        .piece.placed {
+            border-radius: 0;
+            border: none;
+            box-shadow: none;
+            cursor: default;
+            transform: scale(1);
+            width: 100%;
+            height: 100%;
+            max-width: none;
+            opacity: 1 !important;
+            aspect-ratio: auto;
+        }
+
+        .ayah-text {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0; 
+            background-color: rgba(255, 255, 255, 0.9);
+            color: #082f49;
+            text-align: center;
+            font-size: clamp(0.7rem, 2vw, 1.2rem); 
+            font-weight: bold;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.5;
+            transition: all 0.5s ease;
+            user-select: none;
+            word-wrap: break-word; 
+        }
+        
+        .piece.placed .ayah-text {
+            background-color: rgba(255, 255, 255, 0.6); 
+            color: #082f49; 
+            text-shadow: 1px 1px 0px #fff, -1px -1px 0px #fff, 1px -1px 0px #fff, -1px 1px 0px #fff, 0px 0px 8px rgba(255, 255, 255, 0.9);
+            font-size: clamp(0.6rem, 1.5vw, 1rem);
+        }
+
+        @keyframes error-shake {
+            0%, 100% { transform: translateX(0) scale(1.05); border-color: #ef4444; box-shadow: 0 0 20px rgba(239, 68, 68, 0.8); }
+            20% { transform: translateX(-8px) scale(1.05); border-color: #ef4444; }
+            40% { transform: translateX(8px) scale(1.05); border-color: #ef4444; }
+            60% { transform: translateX(-8px) scale(1.05); border-color: #ef4444; }
+            80% { transform: translateX(8px) scale(1.05); border-color: #ef4444; }
+        }
+        .error-shake {
+            animation: error-shake 0.5s cubic-bezier(.36,.07,.19,.97) both !important;
+        }
+
+        @keyframes pop-in {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .pop-in {
+            animation: pop-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+            opacity: 0;
+        }
+
+        @keyframes snap-in {
+            0% { transform: scale(1.2); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .snap-in {
+            animation: snap-in 0.3s ease-out forwards;
+        }
+
+        #win-screen, #welcome-screen {
+            backdrop-filter: blur(10px);
+            z-index: 100;
+        }
+        
+        #pieces-pool {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 12px;
+            width: 100%;
+            max-width: 500px;
+            justify-items: center;
+        }
+
+        #confetti-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 60;
+        }
+
+        .gender-option {
+            border: 4px solid transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        .gender-option.selected {
+            border-color: #fde047;
+            background-color: rgba(253, 224, 71, 0.2);
+            transform: scale(1.15);
+            box-shadow: 0 10px 15px -3px rgba(253, 224, 71, 0.4);
+        }
+
+        .lvl-btn {
+            border: 4px solid #bae6fd;
+            background-color: #f0f9ff;
+            color: #0369a1;
+            transition: all 0.3s ease;
+        }
+        .lvl-btn.active {
+            border-color: #fde047;
+            background-color: #fef08a;
+            transform: scale(1.02);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="pb-10">
+
+    <div id="welcome-screen" class="fixed inset-0 bg-sky-900/95 flex flex-col justify-center items-center p-4 text-center overflow-y-auto">
+        <div class="bg-white rounded-3xl p-6 shadow-2xl max-w-sm w-full pop-in my-8">
+            <h1 class="text-3xl font-black text-sky-600 mb-6">مرحباً بك!</h1>
+            
+            <p class="text-sky-800 font-bold mb-3 text-lg">ما هو اسمك؟</p>
+            <input type="text" id="player-name-input" 
+                class="w-full p-4 rounded-xl border-4 border-sky-100 text-center text-xl font-bold text-sky-900 focus:border-yellow-400 outline-none mb-6 shadow-inner" 
+                placeholder="اكتب اسمك هنا...">
+
+            <p class="text-sky-800 font-bold mb-3 text-lg">هل أنت بطل أم بطلة؟</p>
+            <div class="flex justify-center gap-6 mb-6">
+                <button onclick="selectGender('boy')" id="boy-opt" class="gender-option bg-sky-50 p-4 rounded-2xl flex flex-col items-center">
+                    <span class="text-5xl mb-2">👦</span>
+                    <span class="font-black text-sky-800">بطل</span>
+                </button>
+                <button onclick="selectGender('girl')" id="girl-opt" class="gender-option bg-pink-50 p-4 rounded-2xl flex flex-col items-center">
+                    <span class="text-5xl mb-2">👧</span>
+                    <span class="font-black text-pink-600">بطلة</span>
+                </button>
+            </div>
+
+            <div class="mb-6 w-full">
+                <p class="text-sky-800 font-bold mb-3 text-lg">اختر مستوى اللعب (متضمن الفاتحة دائماً):</p>
+                <div class="flex flex-col gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                    <button onclick="selectLevel(1)" id="lvl-1-btn" class="lvl-btn py-3 px-4 rounded-xl font-bold text-sm active">المستوى الأول (العلق - الناس)</button>
+                    <button onclick="selectLevel(2)" id="lvl-2-btn" class="lvl-btn py-3 px-4 rounded-xl font-bold text-sm">المستوى الثاني (الانشقاق - الناس)</button>
+                    <button onclick="selectLevel(3)" id="lvl-3-btn" class="lvl-btn py-3 px-4 rounded-xl font-bold text-sm">المستوى الثالث (جزء عم كامل)</button>
+                    <button onclick="selectLevel(4)" id="lvl-4-btn" class="lvl-btn py-3 px-4 rounded-xl font-bold text-sm">المستوى الرابع (الجزء الـ 29 - تبارك)</button>
+                    <button onclick="selectLevel(5)" id="lvl-5-btn" class="lvl-btn py-3 px-4 rounded-xl font-bold text-sm">المستوى الخامس (الجزء الـ 28 - قد سمع)</button>
+                    <button onclick="selectLevel(6)" id="lvl-6-btn" class="lvl-btn py-3 px-4 rounded-xl font-bold text-sm">المستوى السادس (الجزء الـ 27 - الذاريات)</button>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full bg-yellow-400 hover:bg-yellow-300 text-sky-900 font-black py-4 rounded-xl text-2xl shadow-lg transition transform active:scale-95" id="start-btn" disabled>
+                جاري تحميل البيانات... ⏳
+            </button>
+            
+            <div id="error-msg" class="hidden mt-4 text-red-500 font-bold text-sm"></div>
+        </div>
+    </div>
+
+    <div id="game-ui" class="hidden w-full flex flex-col items-center">
+        
+        <div class="w-full max-w-2xl mt-4 px-4">
+            <div id="levels-container" class="levels-wrapper flex gap-3">
+            </div>
+        </div>
+
+        <div class="w-full flex flex-col items-center mt-6 px-4">
+            <div class="text-center mb-4 w-full max-w-md">
+                <h1 id="surah-title" class="text-3xl font-black text-yellow-300 drop-shadow-md border-b-4 border-yellow-400 inline-block pb-1 mb-2">
+                    ...
+                </h1>
+                <div id="welcome-msg" class="text-white text-lg font-bold mb-4 drop-shadow"></div>
+                <div class="bg-sky-900/40 rounded-xl p-3 shadow-inner border border-sky-300/20">
+                    <p class="text-white text-sm font-bold flex items-center justify-center gap-2">
+                        <span class="bg-yellow-400 text-sky-900 rounded-full w-5 h-5 flex items-center justify-center text-xs">1</span>
+                        اضغط على القطعة لسماع الآية.
+                    </p>
+                    <p class="text-white text-sm font-bold flex items-center justify-center gap-2 mt-2">
+                        <span class="bg-yellow-400 text-sky-900 rounded-full w-5 h-5 flex items-center justify-center text-xs">2</span>
+                        اضغط على مكانها الصحيح لتكوين الصورة.
+                    </p>
+                </div>
+            </div>
+
+            <div id="board" class="board-container mb-6"></div>
+            <div id="pieces-pool"></div>
+        </div>
+    </div>
+
+    <div id="win-screen" class="hidden fixed inset-0 bg-slate-900/90 flex flex-col justify-center items-center text-center p-4">
+        <div class="text-7xl mb-4 pop-in" style="animation-delay: 0.1s;">🏆🌟</div>
+        <h2 id="win-headline" class="text-4xl md:text-5xl font-black text-yellow-400 mb-2 pop-in drop-shadow-lg" style="animation-delay: 0.3s;"></h2>
+        <p id="win-player-name" class="text-3xl md:text-4xl text-white font-black mb-4 pop-in" style="animation-delay: 0.4s;"></p>
+        <p class="text-xl md:text-2xl text-sky-200 font-bold mb-10 pop-in" style="animation-delay: 0.5s;">لقد أتممت ترتيب الآيات والصورة بنجاح!</p>
+        <div class="flex gap-4 pop-in flex-wrap justify-center" style="animation-delay: 0.7s;">
+            <button onclick="closeWinScreen()" class="bg-gradient-to-t from-yellow-500 to-yellow-300 hover:from-yellow-400 hover:to-yellow-200 text-sky-900 font-black py-4 px-8 rounded-full shadow-2xl text-xl transition transform hover:scale-110 border-4 border-white">
+                السورة التالية ⬅️
+            </button>
+            <button onclick="printCertificate()" class="bg-gradient-to-t from-white to-gray-200 hover:from-gray-100 hover:to-gray-300 text-sky-900 font-black py-4 px-8 rounded-full shadow-2xl text-xl transition transform hover:scale-110 border-4 border-yellow-400">
+                📜 شهادة تقدير
+            </button>
+        </div>
+    </div>
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <script>
+        const getAudio = (surah, ayah) => `https://everyayah.com/data/Husary_Muallim_128kbps/${String(surah).padStart(3, '0')}${String(ayah).padStart(3, '0')}.mp3`;
+
+        // مصفوفة الصور (كما هي)
+        const imgArr = [
+            "WhatsApp Image 2026-05-17 at 00.12.11 (1).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.11 (2).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.11.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.12.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.13 (1).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.13 (2).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.13.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.15.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.16.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.17 (1).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.17.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.18 (1).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.12.18.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.13.38 (1).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.13.38.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.13.39.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.13.41 (1).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.13.41 (2).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.13.41.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.14.45 (1).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.14.45.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.14.46.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.14.47 (1).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.14.47 (2).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.14.47 (3).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.14.47 (4).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.14.47.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.16.51.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.16.52 (1).jpeg",
+            "WhatsApp Image 2026-05-17 at 00.16.52.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.18.17.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.18.18.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.18.19.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.20.32.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.20.334.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.20.332.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.20.331.jpeg",
+            "WhatsApp Image 2026-05-17 at 00.20.33.jpeg"
+        ];
+
+        // السور المستهدفة: الفاتحة (1) ومن الذاريات (51) إلى الناس (114)
+        const targetSurahsNumbers = [1];
+        for (let i = 51; i <= 114; i++) {
+            targetSurahsNumbers.push(i);
+        }
+        let levels = {}; // سيتم تعبئتها من الـ JSON
+
+        let playerName = "";
+        let playerGender = "boy"; 
+        let currentLevelSelection = 1;
+        let currentLevelKey = '';
+        let activeLevelKeys = [];
+        let selectedPiece = null;
+        let correctPiecesCount = 0;
+        
+        const currentAudio = new Audio();
+        const cheerAudio = new Audio('https://actions.google.com/sounds/v1/crowds/crowd_cheer.ogg');
+        const snapAudio = new Audio('https://actions.google.com/sounds/v1/cartoon/pop.ogg');
+        snapAudio.volume = 0.5;
+
+        // --- جلب البيانات وتجهيز اللعبة ---
+        async function fetchQuranData() {
+            const startBtn = document.getElementById('start-btn');
+            const errorMsg = document.getElementById('error-msg');
+            
+            try {
+                const response = await fetch('./database.json');
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                
+                const allQuranData = await response.json();
+                
+                // فلترة السور المطلوبة (الفاتحة + من الجزء 27 للـ 30)
+                const filteredData = allQuranData.filter(s => targetSurahsNumbers.includes(s.number));
+                
+                if (filteredData.length === 0) throw new Error("لم يتم العثور على السور المطلوبة في الملف.");
+
+                // تحويل البيانات إلى تنسيق اللعبة
+                filteredData.forEach((surah, index) => {
+                    const key = `surah_${surah.number}`;
+                    // حساب عدد الأعمدة والصفوف بناءً على عدد الآيات تقريباً
+                    const totalVerses = surah.verses.length;
+                    let cols = Math.ceil(Math.sqrt(totalVerses));
+                    let rows = Math.ceil(totalVerses / cols);
+
+                    levels[key] = {
+                        title: `سورة ${surah.name.ar}`,
+                        key: key,
+                        number: surah.number,
+                        image: imgArr[index % imgArr.length],
+                        cols: cols,
+                        rows: rows,
+                        data: surah.verses.map(v => ({
+                            id: v.number,
+                            text: v.text.ar, // الاعتماد على النص من JSON
+                            audio: getAudio(surah.number, v.number)
+                        }))
+                    };
+                });
+
+                // تفعيل زر البدء
+                startBtn.innerText = "ابدأ اللعب الآن 🚀";
+                startBtn.disabled = false;
+
+            } catch (error) {
+                console.error("Error loading data:", error);
+                startBtn.innerText = "فشل التحميل ❌";
+                errorMsg.innerText = "تأكد من تشغيل اللعبة عبر Live Server وأن ملف database.json موجود بجوار ملف HTML.";
+                errorMsg.classList.remove('hidden');
+            }
+        }
+
+
+        function selectGender(gender) {
+            playerGender = gender;
+            document.getElementById('boy-opt').classList.remove('selected');
+            document.getElementById('girl-opt').classList.remove('selected');
+            document.getElementById(`${gender}-opt`).classList.add('selected');
+        }
+
+        function selectLevel(lvl) {
+            currentLevelSelection = lvl;
+            document.querySelectorAll('.lvl-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`lvl-${lvl}-btn`).classList.add('active');
+        }
+
+        function renderLevelButtons() {
+            const container = document.getElementById('levels-container');
+            container.innerHTML = '';
+            
+            // تصفية السور حسب المستوى المختار
+            let filteredKeys = Object.keys(levels).filter(key => {
+                const num = levels[key].number;
+                if (num === 1) return true; // الفاتحة دائماً
+                
+                if (currentLevelSelection === 1 && num >= 96 && num <= 114) return true;
+                if (currentLevelSelection === 2 && num >= 84 && num <= 114) return true;
+                if (currentLevelSelection === 3 && num >= 78 && num <= 114) return true;
+                if (currentLevelSelection === 4 && num >= 67 && num <= 77) return true;
+                if (currentLevelSelection === 5 && num >= 58 && num <= 66) return true;
+                if (currentLevelSelection === 6 && num >= 51 && num <= 57) return true;
+                
+                return false;
+            });
+
+            // ترتيب تنازلي (الفاتحة في البداية ثم من الأعلى رقما للأسفل)
+            filteredKeys.sort((a, b) => {
+                const numA = levels[a].number;
+                const numB = levels[b].number;
+                if (numA === 1) return -1;
+                if (numB === 1) return 1;
+                return numB - numA; 
+            });
+
+            activeLevelKeys = filteredKeys;
+
+            filteredKeys.forEach(key => {
+                const level = levels[key];
+                const btn = document.createElement('button');
+                btn.className = `level-btn px-5 py-2 rounded-full font-bold text-lg quran-text`;
+                btn.id = `btn-${level.key}`;
+                btn.innerText = level.title;
+                btn.onclick = () => loadLevel(level.key);
+                container.appendChild(btn);
+            });
+        }
+
+        function startGame() {
+            if(Object.keys(levels).length === 0) return; // تأكيد تحميل البيانات
+
+            const input = document.getElementById('player-name-input');
+            playerName = input.value.trim() || (playerGender === 'boy' ? "بطلنا" : "بطلتنا");
+            
+            document.getElementById('welcome-screen').classList.add('hidden');
+            document.getElementById('game-ui').classList.remove('hidden');
+            
+            const honorific = playerGender === 'boy' ? 'البطل' : 'البطلة';
+            document.getElementById('welcome-msg').innerText = `أهلاً بك يا ${honorific} : ${playerName}`;
+            
+            renderLevelButtons();
+            loadLevel(activeLevelKeys[0]); // تحميل أول سورة بناء على المستوى المختار
+        }
+
+        function loadLevel(levelKey) {
+            document.querySelectorAll('.level-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.getElementById('btn-' + levelKey);
+            if(activeBtn) {
+                activeBtn.classList.add('active');
+                activeBtn.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+            }
+
+            currentLevelKey = levelKey;
+            const levelData = levels[levelKey];
+            document.getElementById('surah-title').innerText = levelData.title;
+            
+            const board = document.getElementById('board');
+            const pool = document.getElementById('pieces-pool');
+
+            board.style.backgroundImage = 'none';
+            board.style.gap = '0px'; 
+            board.style.gridTemplateColumns = `repeat(${levelData.cols}, 1fr)`;
+            board.style.gridTemplateRows = `repeat(${levelData.rows}, 1fr)`;
+            board.style.aspectRatio = `${levelData.cols} / ${levelData.rows}`;
+            board.style.border = '6px solid #fde047';
+            
+            board.innerHTML = '';
+            pool.innerHTML = '';
+            correctPiecesCount = 0;
+            selectedPiece = null;
+            
+            currentAudio.pause();
+            cheerAudio.pause();
+            cheerAudio.currentTime = 0;
+
+            const totalSlots = levelData.cols * levelData.rows;
+            for(let i = 1; i <= totalSlots; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'board-slot';
+                if (i <= levelData.data.length) {
+                    slot.dataset.id = levelData.data[i-1].id;
+                    // تحويل رقم الآية إلى الشكل العربي
+                    const arabicNum = i.toLocaleString('ar-EG');
+                    slot.innerText = arabicNum; 
+                    slot.addEventListener('click', () => handleSlotClick(slot));
+                } else {
+                    slot.style.border = 'none';
+                    slot.style.background = 'transparent';
+                }
+                board.appendChild(slot);
+            }
+
+            const piecesData = levelData.data.map((item, index) => {
+                const row = Math.floor(index / levelData.cols);
+                const col = index % levelData.cols;
+                const posX = levelData.cols > 1 ? (1 - (col / (levelData.cols - 1))) * 100 : 0;
+                const posY = levelData.rows > 1 ? (row / (levelData.rows - 1)) * 100 : 0;
+                return { ...item, bgPos: `${posX}% ${posY}%` };
+            });
+
+            const fallbackUrl = `https://picsum.photos/seed/${levelData.number}/800/800`;
+
+            const shuffledData = [...piecesData].sort(() => Math.random() - 0.5);
+            shuffledData.forEach((data, index) => {
+                const piece = document.createElement('div');
+                piece.className = 'piece in-pool pop-in';
+                piece.style.animationDelay = `${index * 0.05}s`; 
+                piece.dataset.id = data.id;
+                piece.dataset.audio = data.audio;
+                
+                piece.style.backgroundImage = `url("${encodeURI(levelData.image)}"), url("${fallbackUrl}")`;
+                piece.style.backgroundSize = `${levelData.cols * 100}% ${levelData.rows * 100}%`;
+                piece.style.backgroundPosition = data.bgPos;
+
+                const text = document.createElement('div');
+                text.className = 'ayah-text quran-text'; // تطبيق خط القرآن
+                text.innerText = data.text;
+                piece.appendChild(text);
+
+                piece.addEventListener('click', () => handlePieceClick(piece));
+                pool.appendChild(piece);
+            });
+        }
+
+        function handlePieceClick(piece) {
+            if(piece.classList.contains('placed')) return;
+            
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+
+            if (selectedPiece) {
+                selectedPiece.classList.remove('selected', 'error-shake');
+            }
+
+            selectedPiece = piece;
+            piece.classList.add('selected');
+
+            currentAudio.src = piece.dataset.audio;
+            currentAudio.play().catch(e => console.log("Audio play prevented"));
+            
+            document.querySelectorAll('.board-slot').forEach(s => {
+                if(s.dataset.id && s.childNodes.length <= 1) s.classList.add('highlight');
+            });
+        }
+
+        function handleSlotClick(slot) {
+            if (!selectedPiece) return;
+
+            if (slot.dataset.id === selectedPiece.dataset.id) {
+                selectedPiece.classList.remove('selected', 'error-shake', 'in-pool', 'pop-in');
+                selectedPiece.classList.add('placed', 'snap-in');
+                
+                snapAudio.currentTime = 0;
+                snapAudio.play().catch(e => {});
+
+                slot.innerText = ''; 
+                slot.style.border = 'none'; 
+                slot.appendChild(selectedPiece);
+                
+                selectedPiece = null;
+                removeHighlights();
+
+                correctPiecesCount++;
+                const levelData = levels[currentLevelKey];
+
+                if (correctPiecesCount === levelData.data.length) {
+                    setTimeout(() => {
+                        const board = document.getElementById('board');
+                        board.style.border = '6px solid #ffffff';
+                        
+                        cheerAudio.currentTime = 0;
+                        cheerAudio.play().catch(e => {});
+                        
+                        showWinScreen();
+                        fireConfetti();
+                    }, 1500); 
+                }
+            } else {
+                selectedPiece.classList.remove('error-shake'); 
+                void selectedPiece.offsetWidth; 
+                selectedPiece.classList.add('error-shake');
+            }
+        }
+
+        function removeHighlights() {
+            document.querySelectorAll('.board-slot').forEach(s => s.classList.remove('highlight'));
+        }
+
+        function showWinScreen() {
+            const headline = document.getElementById('win-headline');
+            const nameDisplay = document.getElementById('win-player-name');
+            
+            const honorific = playerGender === 'boy' ? 'البطل' : 'البطلة';
+            headline.innerText = `أحسنتِ يا ${honorific}!`;
+            if(playerGender === 'boy') headline.innerText = `أحسنتَ يا ${honorific}!`;
+            
+            nameDisplay.innerText = `🌟 ${playerName} 🌟`;
+            
+            const winScreen = document.getElementById('win-screen');
+            winScreen.classList.remove('hidden');
+            winScreen.classList.add('flex');
+        }
+
+        function closeWinScreen() {
+            document.getElementById('win-screen').classList.add('hidden');
+            document.getElementById('win-screen').classList.remove('flex');
+            stopConfetti();
+            
+            const currentIndex = activeLevelKeys.indexOf(currentLevelKey);
+            const nextIndex = (currentIndex + 1) % activeLevelKeys.length;
+            loadLevel(activeLevelKeys[nextIndex]);
+        }
+
+        function printCertificate() {
+            const honorific = playerGender === 'boy' ? 'البطل' : 'البطلة';
+            const surahName = levels[currentLevelKey].title;
+            
+            const printContent = `
+                <div style="font-family: 'Tajawal', sans-serif; text-align: center; padding: 40px; border: 10px solid #fde047; border-radius: 20px; background: #fff; direction: rtl;">
+                    <h1 style="color: #0ea5e9; font-size: 3em; margin-bottom: 10px;">📜 شهادة تقدير 📜</h1>
+                    <h2 style="color: #333; font-size: 2em;">يُمنح هذا الوسام إلى ${honorific} المتميز:</h2>
+                    <h1 style="color: #eab308; font-size: 3.5em; margin: 20px 0;">${playerName}</h1>
+                    <h2 style="color: #333; font-size: 2em;">لإتمامه ترتيب وحفظ <strong>${surahName}</strong> بنجاح وتفوق.</h2>
+                    <p style="margin-top: 40px; color: #666; font-size: 1.5em;">مبارك لك هذا الإنجاز الرائع! 🌟</p>
+                </div>
+            `;
+            
+            const printWindow = window.open('', '_blank');
+            if(printWindow) {
+                printWindow.document.write('<html><head><title>شهادة تقدير</title><link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@700;900&display=swap" rel="stylesheet"></head><body>');
+                printWindow.document.write(printContent);
+                printWindow.document.write('</body></html>');
+                printWindow.document.close();
+                
+                setTimeout(() => {
+                    printWindow.print();
+                }, 500);
+            } else {
+                alert("يرجى السماح بالنوافذ المنبثقة (Pop-ups) لطباعة الشهادة.");
+            }
+        }
+
+        const canvas = document.getElementById('confetti-canvas');
+        const ctx = canvas.getContext('2d');
+        let confettiParticles = [];
+        let confettiAnimationId;
+
+        function fireConfetti() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            confettiParticles = [];
+            const colors = ['#fde047', '#38bdf8', '#f472b6', '#34d399', '#ffffff'];
+            for (let i = 0; i < 180; i++) {
+                confettiParticles.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    size: Math.random() * 10 + 5,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    speedY: Math.random() * 4 + 2,
+                    speedX: Math.random() * 2 - 1,
+                    rotation: Math.random() * 360,
+                    rotationSpeed: Math.random() * 10 - 5
+                });
+            }
+            renderConfetti();
+        }
+
+        function renderConfetti() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let active = false;
+            confettiParticles.forEach(p => {
+                p.y += p.speedY; p.x += p.speedX; p.rotation += p.rotationSpeed;
+                if (p.y < canvas.height) active = true;
+                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rotation * Math.PI / 180);
+                ctx.fillStyle = p.color; ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size); ctx.restore();
+            });
+            if (active) confettiAnimationId = requestAnimationFrame(renderConfetti);
+        }
+
+        function stopConfetti() {
+            cancelAnimationFrame(confettiAnimationId);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // تهيئة مبدئية عند تحميل الصفحة وجلب البيانات
+        window.onload = () => {
+            selectGender('boy');
+            selectLevel(1); // تحديد المستوى الأول افتراضياً
+            fetchQuranData(); // البدء بجلب البيانات فور تحميل الصفحة
+        };
+    </script>
+</body>
+</html>
